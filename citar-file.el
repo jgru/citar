@@ -170,7 +170,9 @@ following the key as group 3."
       (setq additional-sep nil))
     (concat
      "\\`"
-     (if keys (regexp-opt keys "\\(?1:") "\\(?1:[^z-a]*?\\)")
+     (if keys
+           (regexp-opt (transform-keys keys) "\\(?1:") "\\(?1:[^z-a]*?\\)")
+     ;;(if keys (regexp-opt keys "\\(?1:") "\\(?1:[^z-a]*?\\)")
      (when additional-sep (concat "\\(?3:" additional-sep "[^z-a]*\\)?"))
      "\\."
      (if extensions (regexp-opt extensions "\\(?2:") "\\(?2:[^.]*\\)")
@@ -254,7 +256,7 @@ repeatedly."
              (cached (if (and xref
                               (not (eq 'unknown (gethash xref files 'unknown))))
                          (gethash xref files 'unknown)
-                       (gethash key files 'unknown))))
+                       (gethash (car (transform-keys (list key))) files 'unknown))))
         (if (not (eq cached 'unknown))
             cached
           ;; KEY has no files in DIRS, so check the ENTRY-FIELD field of
@@ -323,20 +325,27 @@ of files found in two ways:
                   nil 0 nil
                   file)))
 
+;; Override filename derivation for notes to transform dblp keys
 (defun citar-file--get-note-filename (key dirs extensions)
   "Return existing or new filename for KEY in DIRS with extension in EXTENSIONS.
-
 This is for use in a note function where notes are one-per-file,
 with citekey as filename.
-
 Returns the filename whether or not the file exists, to support a
 function that will open a new file if the note is not present."
   (let ((files (citar-file--directory-files dirs (list key) extensions
-                                            citar-file-additional-files-separator)))
+                                            citar-file-additional-files-separator))
+        (key (car (transform-keys (list key)))))
     (or (car (gethash key files))
         (when-let ((dir (car dirs))
                    (ext (car extensions)))
           (expand-file-name (concat key "." ext) dir)))))
+
+(defun transform-keys (keys)
+  "Transform a BibTeX-key to some other string"
+  (mapcar #'(lambda (k) (if (string-match-p "/" k)
+                            (car (last (split-string k "/")))
+                          k))
+          keys))
 
 (provide 'citar-file)
 ;;; citar-file.el ends here
